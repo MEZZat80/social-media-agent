@@ -1,0 +1,4 @@
+# Automated Reporter for Idrak Pharma
+# Run this every hour via cron
+
+0 * * * * cd /root/.openclaw/workspace && python3 scripts/automated_reporter.py >> /var/log/idrak_reporter.log 2>&1
