@@ -13,6 +13,7 @@ on:
         options:
           - read
           - post
+          - analytics
           - both
 
 jobs:
@@ -34,6 +35,32 @@ jobs:
         env:
           X_BEARER_TOKEN: ${{ secrets.ALKINDUS_X_BEARER_TOKEN }}
         run: python scripts/content_reader.py
+
+  shopify-analytics:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'analytics' || github.event.inputs.action == 'both'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install requests
+      
+      - name: Fetch Shopify Analytics
+        env:
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
+        run: python scripts/shopify_analytics.py
+      
+      - name: Upload Analytics
+        uses: actions/upload-artifact@v4
+        with:
+          name: shopify-analytics
+          path: shopify_analytics.json
 
   post-to-x:
     runs-on: ubuntu-latest
