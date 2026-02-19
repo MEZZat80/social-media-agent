@@ -1,0 +1,9 @@
+[
+  {
+    "level": "WARNING",
+    "category": "INVENTORY",
+    "message": "Inventory running low",
+    "action_required": "Reorder top-selling SKUs within 7 days",
+    "timestamp": "2026-02-19T13:36:06.921372"
+  }
+]

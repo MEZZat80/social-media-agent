@@ -1,0 +1,45 @@
+name: Idrak Business Operating System
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * *'  # يومياً الساعة 9 صباحاً
+
+jobs:
+  daily-bos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Run BOS Daily Check
+        env:
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
+        run: python scripts/idrak_bos.py
+      
+      - name: Upload BOS Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: bos-reports
+          path: |
+            obsidian/bos/decisions.md
+            obsidian/bos/metrics.json
+            obsidian/bos/alerts.json
+      
+      - name: Commit to Repository
+        run: |
+          git config user.name "Idrak BOS"
+          git config user.email "bos@idrakpharma.com"
+          git add obsidian/bos/
+          git diff --quiet && git diff --staged --quiet || git commit -m "BOS Daily Check - $(date +%Y-%m-%d)"
+          git push
+      
+      - name: Notify if Critical
+        if: failure()
+        run: |
+          echo "🔴 CRITICAL: BOS check failed. Manual intervention required."
