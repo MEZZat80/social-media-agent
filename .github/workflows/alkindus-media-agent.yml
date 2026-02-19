@@ -4,10 +4,21 @@ on:
   schedule:
     - cron: '0 */6 * * *'  # كل 6 ساعات
   workflow_dispatch:  # تشغيل يدوي
+    inputs:
+      action:
+        description: 'Action to run'
+        required: true
+        default: 'read'
+        type: choice
+        options:
+          - read
+          - post
+          - both
 
 jobs:
-  post-to-x:
+  read-content:
     runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'read' || github.event.inputs.action == 'both' || github.event.inputs.action == ''
     steps:
       - uses: actions/checkout@v4
       
@@ -17,8 +28,26 @@ jobs:
           python-version: '3.11'
       
       - name: Install dependencies
-        run: |
-          pip install tweepy requests
+        run: pip install tweepy requests
+      
+      - name: Read and organize content
+        env:
+          X_BEARER_TOKEN: ${{ secrets.ALKINDUS_X_BEARER_TOKEN }}
+        run: python scripts/content_reader.py
+
+  post-to-x:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'post' || github.event.inputs.action == 'both'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install tweepy requests
       
       - name: Generate and post content
         env:
