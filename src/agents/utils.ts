@@ -296,7 +296,10 @@ export function extractMimeTypeFromBase64(base64String: string): string | null {
 /**
  * Processes an image input which can be a URL, base64 string, or "remove" command
  * @param imageInput The image input string (URL, base64, or "remove")
- * @returns Object containing the public image URL and MIME type, or undefined if image should be removed
+ * @returns Object containing the public image URL and MIME type, "remove" if the
+ * image should be removed, or undefined if the input could not be resolved
+ * @throws {Error} If the image's MIME type is blacklisted, so the human node can
+ * re-prompt the user with an error message.
  */
 export async function processImageInput(
   imageInput: string,
@@ -309,7 +312,13 @@ export async function processImageInput(
     const { contentType } = await imageUrlToBuffer(imageInput);
 
     if (BLACKLISTED_MIME_TYPES.find((mt) => contentType.startsWith(mt))) {
-      return undefined;
+      // Surface the error so the human node re-prompts the user for a supported
+      // image instead of silently dropping it.
+      throw new Error(
+        `Unsupported image type: '${contentType}'.\n\n` +
+          `Blacklisted MIME types: ${BLACKLISTED_MIME_TYPES.join(", ")}.\n\n` +
+          "Please provide an image with a supported MIME type, or 'remove' to remove the image.",
+      );
     }
 
     return {
@@ -381,13 +390,7 @@ export function filterUnwantedImageUrls(urls: string[]): string[] {
  * `undefined` if the URL type could not be determined
  */
 export type UrlType =
-  | "github"
-  | "youtube"
-  | "general"
-  | "twitter"
-  | "reddit"
-  | "luma"
-  | undefined;
+  "github" | "youtube" | "general" | "twitter" | "reddit" | "luma" | undefined;
 
 export function getUrlType(url: string): UrlType {
   let parsedUrl: URL | undefined = undefined;

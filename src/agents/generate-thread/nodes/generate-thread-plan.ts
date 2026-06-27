@@ -1,4 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
+import { ChatAnthropic } from "@langchain/anthropic";
+import { z } from "zod";
 import { formatReportsForPrompt } from "../utils.js";
 import { GenerateThreadState } from "../state.js";
 
@@ -71,6 +73,58 @@ function parseTotalPosts(generation: string): number | undefined {
   return Number(totalPosts);
 }
 
+const TOTAL_POSTS_SCHEMA = z.object({
+  totalPosts: z
+    .number()
+    .int()
+    .describe("The total number of posts the thread plan intends to write."),
+});
+
+/**
+ * Fallback used when {@link parseTotalPosts} can not extract the post count from
+ * the generated plan (e.g. the model omitted or malformed the <total-posts>
+ * tags). Asks an LLM to read the plan and return the intended number of posts.
+ *
+ * @param {string} generation The generated thread plan.
+ * @returns {Promise<number | undefined>} The extracted post count, or undefined
+ * if the LLM could not determine a valid number.
+ */
+async function extractTotalPostsWithLLM(
+  generation: string,
+): Promise<number | undefined> {
+  const model = new ChatAnthropic({
+    model: "claude-sonnet-4-5",
+    temperature: 0,
+  }).withStructuredOutput(TOTAL_POSTS_SCHEMA, {
+    name: "extract_total_posts",
+  });
+
+  try {
+    const { totalPosts } = await model.invoke([
+      [
+        "system",
+        "You are given a plan for a Twitter thread. Determine the total number of " +
+          "posts the plan intends to write and respond with that integer count. " +
+          "Count the distinct posts outlined in the plan's body if no explicit " +
+          "total is stated.",
+      ],
+      ["user", generation],
+    ]);
+
+    if (
+      typeof totalPosts !== "number" ||
+      isNaN(totalPosts) ||
+      totalPosts <= 0
+    ) {
+      return undefined;
+    }
+    return totalPosts;
+  } catch (e) {
+    console.error("Failed to extract total posts via LLM fallback", e);
+    return undefined;
+  }
+}
+
 export async function generateThreadPlan(
   state: GenerateThreadState,
 ): Promise<Partial<GenerateThreadState>> {
@@ -91,9 +145,13 @@ ${formatReportsForPrompt(state.reports)}
   ]);
 
   const threadPlan = response.content as string;
-  const totalPosts = parseTotalPosts(threadPlan);
+  let totalPosts = parseTotalPosts(threadPlan);
   if (totalPosts === undefined) {
-    // TODO: Make this pass to an LLM and have the LLM extract the number.
+    // Regex parsing failed (missing/malformed <total-posts> tags). Fall back to
+    // an LLM to extract the intended number of posts from the plan.
+    totalPosts = await extractTotalPostsWithLLM(threadPlan);
+  }
+  if (totalPosts === undefined) {
     throw new Error("Could not parse total posts from generation");
   }
 
