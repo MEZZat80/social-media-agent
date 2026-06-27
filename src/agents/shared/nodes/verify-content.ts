@@ -21,14 +21,13 @@ async function verifyContentIsRelevantFunc(
   content: string,
   args: {
     systemPrompt: string;
-    schema: z.ZodType<z.infer<typeof RELEVANCY_SCHEMA>>;
+    schema: typeof RELEVANCY_SCHEMA;
   },
 ): Promise<boolean> {
   const relevancyModel = new ChatAnthropic({
     model: "claude-sonnet-4-5",
     temperature: 0,
-    // TODO: Type casting as any here shouldn't be required...
-  }).withStructuredOutput(args.schema as any, {
+  }).withStructuredOutput(args.schema, {
     name: "relevancy",
   });
 
@@ -52,7 +51,7 @@ async function verifyContentIsRelevantFunc(
  * @param {string} content - The content to verify.
  * @param {object} args - The arguments containing the system prompt and relevancy schema.
  * @param {string} args.systemPrompt - The system prompt to use for verification.
- * @param {z.ZodType<z.infer<typeof RELEVANCY_SCHEMA>>} args.schema - The relevancy schema to use for verification.
+ * @param {typeof RELEVANCY_SCHEMA} args.schema - The relevancy schema to use for verification.
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the content is relevant.
  */
 export const verifyContentIsRelevant = traceable(verifyContentIsRelevantFunc, {

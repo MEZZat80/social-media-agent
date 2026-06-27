@@ -247,7 +247,6 @@ export async function humanNode(
     next: "schedulePost",
     scheduleDate: postDate,
     threadPosts,
-    // TODO: Update so if the mime type is blacklisted, it re-routes to human node with an error message.
     image: imageState,
     userResponse: undefined,
   };
